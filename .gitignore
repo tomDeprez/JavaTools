@@ -1,1 +1,29 @@
+<<<<<<< HEAD
 .project
+=======
+# Ignorer les fichiers binaires et les dossiers de compilation
+/bin/
+/target/
+
+# Ignorer les fichiers de configuration des IDE
+/.idea/
+/*.iml
+/*.iws
+/.classpath
+/.project
+/.settings/
+
+# Ignorer les fichiers de log
+*.log
+
+# Ignorer les fichiers générés par le système d'exploitation
+.DS_Store
+Thumbs.db
+
+# Ignorer les fichiers de construction
+/build/
+/out/
+
+# Ignorer les fichiers de dépendance de Maven
+/.m2/
+>>>>>>> e3a154c (test)

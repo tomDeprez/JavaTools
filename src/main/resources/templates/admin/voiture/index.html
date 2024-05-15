@@ -3,36 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
-    crossorigin="anonymous">
+    <title>Liste des Voitures</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <table class="table">
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Model</th>
-            <th scope="col">Vitesse</th>
-            <th scope="col">Couleur</th>
-            <th scope="col">Image</th>
-            <th scope="col">Supprimer</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr th:each="voiture : ${listDeVoitures}">
-            <th scope="row">1</th>
-            <td th:text="${voiture.modele}"></td>
-            <td th:text="${voiture.vitesse}"></td>
-            <td th:text="${voiture.couleur}"></td>
-            <td><img src="" alt="" th:src="${voiture.image.url}" width="100"></td>
-            <td><button type="button" class="btn btn-danger">Supprimer</button></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="container mt-5">
+        <h1>Liste des Voitures</h1>
+        <a href="/admin/voiture/ajouter/form" class="btn btn-primary mb-3">Ajouter une Voiture</a>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Modèle</th>
+                    <th scope="col">Vitesse</th>
+                    <th scope="col">Couleur</th>
+                    <th scope="col">Image</th>
+                    <th scope="col">Utilisateurs</th>
+                    <th scope="col">Supprimer</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="voiture, iterStat : ${listDeVoitures}">
+                    <th scope="row" th:text="${iterStat.index + 1}"></th>
+                    <td th:text="${voiture.modele}"></td>
+                    <td th:text="${voiture.vitesse}"></td>
+                    <td th:text="${voiture.couleur}"></td>
+                    <td><img th:src="${voiture.image.url}" alt="Image de la voiture" width="100"></td>
+                    <td>
+                        <ul>
+                            <li th:each="user : ${voiture.userCar}" th:text="${user.prenom} + ' ' + ${user.nom}"></li>
+                        </ul>
+                    </td>
+                    <td>
+                        <a th:href="@{/admin/voiture/supprimer(id=${voiture.id})}" class="btn btn-danger">Supprimer</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
