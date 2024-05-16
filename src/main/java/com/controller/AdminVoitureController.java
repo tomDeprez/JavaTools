@@ -1,4 +1,4 @@
-package com.voiture;
+package com.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.amqp.RabbitProperties.Cache.Connection;
@@ -33,7 +33,6 @@ public class AdminVoitureController {
     @Autowired
     private DataSource dataSource;
 
-
     @GetMapping("/afficher")
     public String afficherVoitures(Model model) {
         List<Voiture> listDeVoitures = voitureRepository.findAll();
@@ -59,6 +58,7 @@ public class AdminVoitureController {
         return "redirect:/admin/voiture/afficher";
     }
 
+    
     @GetMapping("/ajouter/form")
     public String afficherFormulaireAjout(Model model) {
         model.addAttribute("voiture", new Voiture());
@@ -66,47 +66,47 @@ public class AdminVoitureController {
     }
 
     @GetMapping("/afficher2")
-public String afficherVoitures2(Model model) {
-    List<Voiture> listDeVoitures = executerRequeteSql();
-    model.addAttribute("listDeVoitures", listDeVoitures);
-    return "admin/voiture/index";
-}
-
-private List<Voiture> executerRequeteSql() {
-    String sql = "SELECT v.id, v.vitesse, v.modele, v.couleur, i.id AS image_id, i.url, i.alt_text " +
-                 "FROM voiture v " +
-                 "LEFT JOIN image i ON v.image_id = i.id";
-
-    List<Voiture> voitures = new ArrayList<>();
-
-    try (java.sql.Connection conn = dataSource.getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql);
-         ResultSet rs = ps.executeQuery()) {
-
-        System.out.println("Connexion à la base de données établie et requête exécutée.");
-
-        while (rs.next()) {
-            System.out.println("Enregistrement trouvé dans la base de données.");
-            Voiture voiture = new Voiture();
-            voiture.setId(rs.getLong("id"));
-            voiture.setVitesse(rs.getFloat("vitesse"));
-            voiture.setModele(rs.getString("modele"));
-            voiture.setCouleur(rs.getString("couleur"));
-
-            Image image = new Image();
-            image.setId(rs.getLong("image_id"));
-            image.setUrl(rs.getString("url"));
-            image.setAltText(rs.getString("alt_text"));
-
-            voiture.setImage(image);
-            voitures.add(voiture);
-        }
-    } catch (SQLException e) {
-        e.printStackTrace();
+    public String afficherVoitures2(Model model) {
+        List<Voiture> listDeVoitures = executerRequeteSql();
+        model.addAttribute("listDeVoitures", listDeVoitures);
+        return "admin/voiture/index";
     }
 
-    System.out.println("Nombre de voitures récupérées : " + voitures.size());
-    return voitures;
-}
+    private List<Voiture> executerRequeteSql() {
+        String sql = "SELECT v.id, v.vitesse, v.modele, v.couleur, i.id AS image_id, i.url, i.alt_text " +
+                "FROM voiture v " +
+                "LEFT JOIN image i ON v.image_id = i.id";
+
+        List<Voiture> voitures = new ArrayList<>();
+
+        try (java.sql.Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+
+            System.out.println("Connexion à la base de données établie et requête exécutée.");
+
+            while (rs.next()) {
+                System.out.println("Enregistrement trouvé dans la base de données.");
+                Voiture voiture = new Voiture();
+                voiture.setId(rs.getLong("id"));
+                voiture.setVitesse(rs.getFloat("vitesse"));
+                voiture.setModele(rs.getString("modele"));
+                voiture.setCouleur(rs.getString("couleur"));
+
+                Image image = new Image();
+                image.setId(rs.getLong("image_id"));
+                image.setUrl(rs.getString("url"));
+                image.setAltText(rs.getString("alt_text"));
+
+                voiture.setImage(image);
+                voitures.add(voiture);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Nombre de voitures récupérées : " + voitures.size());
+        return voitures;
+    }
 
 }
