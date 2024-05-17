@@ -13,7 +13,7 @@
         <form th:action="@{/admin/voiture/ajouter}" th:object="${voiture}" method="post">
             <div class="mb-3">
                 <label for="modele" class="form-label">Modèle</label>
-                <input type="text" class="form-control" id="modele" th:field="*{modele}">
+                <input type="text" name="test" class="form-control" id="modele" th:field="*{modele}">
             </div>
             <div class="mb-3">
                 <label for="vitesse" class="form-label">Vitesse</label>

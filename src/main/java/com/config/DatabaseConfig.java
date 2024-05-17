@@ -13,9 +13,9 @@ public class DatabaseConfig {
     public DataSource dataSource() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        dataSource.setUrl("jdbc:mysql://localhost:3306/JavaTools");
-        dataSource.setUsername("JavaTools");
-        dataSource.setPassword("JavaTools2024!");
+        dataSource.setUrl("jdbc:mysql://localhost:3307/JavaTools");
+        dataSource.setUsername("root");
+        dataSource.setPassword("");
 
         return dataSource;
     }

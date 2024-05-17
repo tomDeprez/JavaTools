@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-.project
-=======
 # Ignorer les fichiers binaires et les dossiers de compilation
 /bin/
 /target/
@@ -26,4 +23,3 @@ Thumbs.db
 
 # Ignorer les fichiers de dépendance de Maven
 /.m2/
->>>>>>> e3a154c (test)

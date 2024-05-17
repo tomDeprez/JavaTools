@@ -47,7 +47,12 @@ public class AdminVoitureController {
             imageRepository.save(image); // Assurez-vous que imageRepository est correctement injecté
             voiture.setImage(image);
         }
-        voitureRepository.save(voiture);
+        for (int i = 0; i < 10; i++) {
+            Voiture voiture2 = new Voiture();
+            voiture2 = voiture;
+            voiture2.setId(Long.parseLong((i + 100)));
+            voitureRepository.save(voiture2); 
+        }
         return "redirect:/admin/voiture/afficher";
     }
 

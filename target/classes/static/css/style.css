@@ -1,0 +1,54 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #000;
+    /* Fond noir pour simuler les bordures d'un téléphone */
+  }
+  
+  canvas {
+    display: block;
+    border: 10px solid black;
+    /* Bordure noire autour du canvas */
+    border-radius: 20px;
+    /* Coins arrondis pour simuler un téléphone */
+  }
+  
+  #score {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-family: Arial, sans-serif;
+    color: #fff;
+  }
+  
+  #restartBtn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 10px 20px;
+    font-size: 20px;
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    animation: fadeIn 2s;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+  
+    to {
+      opacity: 1;
+    }
+  }

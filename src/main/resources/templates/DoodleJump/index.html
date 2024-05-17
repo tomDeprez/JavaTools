@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doodle Jump</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <canvas id="gameCanvas" width="400" height="700"></canvas>
+  <div id="score">Height: 0</div>
+  <button id="restartBtn">Rejouer</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+    const restartBtn = document.getElementById('restartBtn');
+
+    // Charger les images
+    const backgroundImage = new Image();
+    const playerImage = new Image();
+    const platformImage = new Image();
+
+    backgroundImage.src = 'images/background.png'; // Remplacer par le chemin de votre image de fond
+    playerImage.src = 'images/player.png'; // Remplacer par le chemin de votre image du joueur
+    platformImage.src = 'images/platform.png'; // Remplacer par le chemin de votre image des plateformes
+
+    // Générateur de nombres aléatoires avec une graine
+    class Random {
+      constructor(seed) {
+        this.seed = seed;
+      }
+
+      next() {
+        const x = Math.sin(this.seed++) * 10000;
+        return x - Math.floor(x);
+      }
+
+      nextInRange(min, max) {
+        return min + this.next() * (max - min);
+      }
+    }
+
+    let player;
+    let platforms;
+    let random; // Instance de Random pour la génération aléatoire
+    let heightScore = 0;
+    let keys = {
+      right: false,
+      left: false,
+    };
+
+    // Paramètre pour le niveau aléatoire
+    const niveauAleatoire = false;
+
+    // Initialiser le jeu
+    function initGame() {
+      player = {
+        x: canvas.width / 2,
+        y: canvas.height - 100,
+        width: 50,
+        height: 50,
+        dy: 0,
+        jumpPower: -10, // Puissance de saut augmentée pour une montée plus rapide
+        gravity: 0.3, // Gravité augmentée pour une chute plus rapide
+        speed: 3,
+        maxFallSpeed: 5, // Vitesse maximale de chute
+        isJumping: false,
+        jumpStart: 0,
+        jumpDuration: 34, // Durée du saut en frames
+      };
+      platforms = [];
+      // Utiliser une graine fixe si niveauAleatoire est false, sinon générer une nouvelle graine
+      random = new Random(niveauAleatoire ? Math.floor(Math.random() * 10000) : 12345);
+      generatePlatforms(niveauAleatoire);
+      heightScore = 0;
+      scoreElement.textContent = 'Height: 0';
+      restartBtn.style.display = 'none';
+      gameLoop();
+    }
+
+    // Générer les plateformes
+    function generatePlatforms(randomize) {
+      platforms.push({ x: 0, y: canvas.height - 10, width: canvas.width, height: 10 }); // Plateforme de sol
+      let y = canvas.height - 150;
+      while (y > 0) {
+        const x = randomize ? random.nextInRange(0, canvas.width - 80) : random.nextInRange(0, canvas.width - 80); // Utiliser Random même pour les positions fixes
+        platforms.push({ x, y, width: 80, height: 20 }); // Réduction de la largeur de 20%
+        y -= randomize ? random.nextInRange(100, 150) : random.nextInRange(100, 150); // Utiliser Random même pour les espacements fixes
+      }
+    }
+
+    // Dessiner le fond
+    function drawBackground() {
+      ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Dessiner le joueur
+    function drawPlayer(player) {
+      ctx.drawImage(playerImage, player.x, player.y, player.width, player.height);
+    }
+
+    // Dessiner les plateformes
+    function drawPlatforms() {
+      platforms.forEach(platform => {
+        ctx.drawImage(platformImage, platform.x, platform.y, platform.width, platform.height);
+      });
+    }
+
+    // Gérer les mouvements du joueur
+    function handlePlayerMovement(player) {
+      if (keys.right) {
+        player.x += player.speed;
+      } else if (keys.left) {
+        player.x -= player.speed;
+      }
+
+      // Logique de wrap-around
+      if (player.x > canvas.width) {
+        player.x = 0 - player.width;
+      } else if (player.x + player.width < 0) {
+        player.x = canvas.width;
+      }
+    }
+
+    // Vérifier les collisions avec les plateformes
+    function checkCollisions(player) {
+      let onPlatform = false;
+      platforms.forEach(platform => {
+        if (player.dy > 0 &&
+          player.x < platform.x + platform.width &&
+          player.x + player.width > platform.x &&
+          player.y + player.height > platform.y &&
+          player.y + player.height < platform.y + platform.height) {
+          player.isJumping = true;
+          player.jumpStart = player.jumpDuration; // Commence le saut
+          onPlatform = true;
+        }
+      });
+
+      return onPlatform;
+    }
+
+    // Mettre à jour les plateformes
+    function updatePlatforms() {
+      platforms.forEach(platform => {
+        if (player.y < canvas.height / 2 && player.dy < 0) {
+          platform.y -= player.dy;
+        }
+      });
+
+      platforms.forEach((platform, index) => {
+        if (platform.y > canvas.height) {
+          platforms.splice(index, 1);
+          const x = random.nextInRange(0, canvas.width - 80); // Utiliser Random même pour les nouvelles plateformes
+          const y = platforms[platforms.length - 1].y - random.nextInRange(100, 150); // Utiliser Random même pour les espacements fixes
+          platforms.push({ x, y, width: 80, height: 20 }); // Réduction de la largeur de 20%
+          heightScore++;
+          scoreElement.textContent = 'Height: ' + heightScore;
+        }
+      });
+    }
+
+    // Boucle de jeu
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackground();
+
+      handlePlayerMovement(player);
+
+      if (player.isJumping) {
+        if (player.jumpStart > 0) {
+          player.dy = player.jumpPower * Math.sin(Math.PI * (player.jumpDuration - player.jumpStart) / player.jumpDuration);
+          player.jumpStart--;
+        } else {
+          player.isJumping = false;
+          player.dy = 0;
+        }
+      } else {
+        player.dy += player.gravity;
+      }
+
+      player.dy = Math.min(player.dy, player.maxFallSpeed); // Limiter la vitesse de chute
+      player.y += player.dy;
+
+      if (player.y > canvas.height) {
+        restartBtn.style.display = 'block';
+        return;
+      }
+
+      if (player.y < canvas.height / 2 && player.dy < 0) {
+        player.y = canvas.height / 2;
+        platforms.forEach(platform => {
+          platform.y -= player.dy;
+        });
+      }
+
+      const onPlatform = checkCollisions(player);
+      if (!onPlatform && player.dy > 0) {
+        player.dy += player.gravity; // Accélérer la chute
+      }
+
+      drawPlayer(player);
+      updatePlatforms();
+      drawPlatforms();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowRight') {
+        keys.right = true;
+      } else if (e.code === 'ArrowLeft') {
+        keys.left = true;
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowRight') {
+        keys.right = false;
+      } else if (e.code === 'ArrowLeft') {
+        keys.left = false;
+      }
+    });
+
+    restartBtn.addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+
+</html>
