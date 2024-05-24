@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head th:replace="~{/base/head :: head('Ajouter une voiture')}">
+    </head>
+<body>
+    <header th:replace="~{/base/header :: header}"></header>
+
+    <form action="/admin/exo/voiture/ajouter/modifier" method="post">
+        <input type="text" name="vitesse" placeholder="Vitesse de la voiture">
+        <input type="text" name="modele" placeholder="Modele de la voiture">
+        <input type="text" name="couleur" placeholder="Couleur de la voiture">
+        <input type="text" name="url" placeholder="Image de la voiture">
+        <button type="submit">Créer la voiture</button>
+    </form>
+
+    <footer th:replace="~{/base/footer :: footer}"></footer>
+</body>
+</html>
