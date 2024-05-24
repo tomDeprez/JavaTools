@@ -16,7 +16,15 @@
         <li class="nav-item" th:classappend="${page == 'contact' ? 'active' : ''}">
           <a class="nav-link" th:href="@{/contact}">Contact</a>
         </li>
+        <li class="nav-item" th:classappend="${page == 'contact' ? 'active' : ''}">
+          <a class="nav-link" th:href="@{/admin/exo/voiture/afficher}">Exo voiture</a>
+        </li>
       </ul>
+      <form class="form-inline my-2 my-lg-0 ml-auto" action="/" method="GET">
+        <input class="form-control mr-sm-2" type="search" name="search" placeholder="Search" aria-label="Search">
+        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+      </form>
     </div>
   </nav>
 </header>
+
