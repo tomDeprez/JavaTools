@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <title>Network Connections</title>
+  <style>
+    .toggle-button {
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .toggle-button.local {
+      background-color: #28a745;
+    }
+
+    .toggle-button.stop {
+      background-color: #dc3545;
+    }
+
+    .toggle-button.start {
+      background-color: #ffc107;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Live Network Connections</h1>
+  <div>
+    <label for="network-interfaces">Choose a network interface:</label>
+    <select id="network-interfaces">
+      <option value="">Select an interface</option>
+    </select>
+    <button onclick="startSniffer()">Start Sniffer</button>
+    <button id="toggle-local-button" class="toggle-button" onclick="toggleLocal()">Show Local Only</button>
+    <button id="toggle-sniffer-button" class="toggle-button stop" onclick="toggleSniffer()">Stop Sniffer</button>
+  </div>
+  <div th:if="${error}">
+    <p th:utext="${error}"></p>
+  </div>
+  <div>
+    <pre id="packet-data"></pre>
+  </div>
+  <div id="network-graph"></div>
+
+  <!-- Include D3.js library -->
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <script th:inline="javascript">
+    let nodes = [];
+    let links = [];
+    let localIp = '';
+    let showLocalOnly = false;
+    let nodeSet = new Set();
+    let linkSet = new Set();
+    let simulation;
+    let snifferInterval;
+    let snifferRunning = true;
+
+    // Charger les interfaces réseau disponibles
+    fetch('/interfaces')
+      .then(response => response.json())
+      .then(data => {
+        const select = document.getElementById('network-interfaces');
+        data.forEach(iface => {
+          const option = document.createElement('option');
+          option.value = iface.name;
+          option.text = `${iface.description} (${iface.address})`;
+          select.add(option);
+        });
+      });
+
+    // Fonction pour démarrer le sniffer de paquets
+    function startSniffer() {
+      const select = document.getElementById('network-interfaces');
+      const interfaceName = select.value;
+      if (!interfaceName) {
+        alert('Please select a network interface');
+        return;
+      }
+      fetch(`/sniffer?interfaceName=${encodeURIComponent(interfaceName)}&showLocalOnly=${showLocalOnly}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          localIp = data.localIp;
+          nodes = [{ id: 'local', name: 'Mon ordinateur', ip: localIp, x: 900, y: 390 }];
+          links = [];
+          nodeSet = new Set(['local']);
+          linkSet = new Set();
+          initializeGraph();
+          updatePackets();
+        });
+    }
+
+    // Fonction pour mettre à jour les données de paquets en direct
+    function updatePackets() {
+      if (!snifferRunning) return;
+
+      const select = document.getElementById('network-interfaces');
+      const interfaceName = select.value;
+      fetch(`/sniffer?interfaceName=${encodeURIComponent(interfaceName)}&showLocalOnly=${showLocalOnly}`)
+        .then(response => response.json())
+        .then(data => {
+          // Mise à jour des données de paquets sans afficher le JSON complet
+          const packetData = document.getElementById('packet-data');
+          packetData.innerText = `Local IP: ${localIp}\nPackets captured: ${data.packets.length}`;
+
+          data.packets.forEach((packet) => {
+            if (showLocalOnly && !isLocal(packet.src) && !isLocal(packet.dst)) return;
+
+            if (!nodeSet.has(packet.src)) {
+              nodes.push({ id: packet.src, name: packet.src, ip: packet.src, x: Math.random() * 1800, y: Math.random() * 780 });
+              nodeSet.add(packet.src);
+              links.push({ source: 'local', target: packet.src });
+              linkSet.add(`local-${packet.src}`);
+            }
+
+            if (!nodeSet.has(packet.dst)) {
+              nodes.push({ id: packet.dst, name: packet.dst, ip: packet.dst, x: Math.random() * 1800, y: Math.random() * 780 });
+              nodeSet.add(packet.dst);
+              links.push({ source: packet.src, target: packet.dst });
+              linkSet.add(`${packet.src}-${packet.dst}`);
+            }
+
+            if (!linkSet.has(`${packet.src}-${packet.dst}`) && !linkSet.has(`${packet.dst}-${packet.src}`)) {
+              links.push({ source: packet.src, target: packet.dst });
+              linkSet.add(`${packet.src}-${packet.dst}`);
+            }
+          });
+
+          updateGraph();
+
+          // Ajoutez un délai avant de rappeler le contrôleur pour éviter les erreurs "NaN"
+          snifferInterval = setTimeout(updatePackets, 2000);
+        });
+    }
+
+    // Fonction pour initialiser le graph
+    function initializeGraph() {
+      const svg = d3.select("#network-graph").append("svg")
+        .attr("width", 1800)
+        .attr("height", 780);
+
+      simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100)) // Increase the distance between nodes
+        .force("charge", d3.forceManyBody().strength(-500)) // Increase the repulsion force
+        .force("center", d3.forceCenter(900, 390))
+        .on("tick", ticked);
+
+      svg.append("g").attr("class", "links");
+      svg.append("g").attr("class", "nodes");
+      svg.append("g").attr("class", "labels");
+    }
+
+    // Fonction pour mettre à jour le graph
+    function updateGraph() {
+      const svg = d3.select("#network-graph svg");
+
+      const link = svg.select(".links")
+        .selectAll("line")
+        .data(links, d => `${d.source.id}-${d.target.id}`);
+
+      link.exit().remove();
+
+      link.enter()
+        .append("line")
+        .attr("stroke", "#999")
+        .attr("stroke-width", 1.5)
+        .merge(link);
+
+      const node = svg.select(".nodes")
+        .selectAll("circle")
+        .data(nodes, d => d.id);
+
+      node.exit().remove();
+
+      node.enter()
+        .append("circle")
+        .attr("r", 5)
+        .attr("fill", "#69b3a2")
+        .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended))
+        .merge(node);
+
+      const label = svg.select(".labels")
+        .selectAll("text")
+        .data(nodes, d => d.id);
+
+      label.exit().remove();
+
+      label.enter()
+        .append("text")
+        .attr("dy", -10)
+        .attr("text-anchor", "middle")
+        .text(d => d.name)
+        .merge(label);
+
+      simulation.nodes(nodes);
+      simulation.force("link").links(links);
+      simulation.alpha(1).restart();
+    }
+
+    function ticked() {
+      d3.selectAll("line")
+        .attr("x1", d => isFinite(d.source.x) ? d.source.x : 0)
+        .attr("y1", d => isFinite(d.source.y) ? d.source.y : 0)
+        .attr("x2", d => isFinite(d.target.x) ? d.target.x : 0)
+        .attr("y2", d => isFinite(d.target.y) ? d.target.y : 0);
+
+      d3.selectAll("circle")
+        .attr("cx", d => isFinite(d.x) ? d.x : 0)
+        .attr("cy", d => isFinite(d.y) ? d.y : 0);
+
+      d3.selectAll("text")
+        .attr("x", d => isFinite(d.x) ? d.x : 0)
+        .attr("y", d => isFinite(d.y) ? d.y : 0);
+    }
+
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    // Vérifier si une adresse IP est locale
+    function isLocal(ip) {
+      return ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.') || ip.startsWith('172.31.');
+    }
+
+    // Basculer entre l'affichage local et complet
+    function toggleLocal() {
+      showLocalOnly = !showLocalOnly;
+      const button = document.getElementById('toggle-local-button');
+      if (showLocalOnly) {
+        button.textContent = "Show All";
+        button.classList.add("local");
+      } else {
+        button.textContent = "Show Local Only";
+        button.classList.remove("local");
+      }
+      nodes = [{ id: 'local', name: 'Mon ordinateur', ip: localIp, x: 900, y: 390 }];
+      links = [];
+      nodeSet = new Set(['local']);
+      linkSet = new Set();
+      updatePackets();
+    }
+
+    // Basculer entre l'arrêt et la reprise du sniffer
+    function toggleSniffer() {
+      snifferRunning = !snifferRunning;
+      const button = document.getElementById('toggle-sniffer-button');
+      if (snifferRunning) {
+        button.textContent = "Stop Sniffer";
+        button.classList.remove("start");
+        button.classList.add("stop");
+        updatePackets();
+      } else {
+        button.textContent = "Start Sniffer";
+        button.classList.remove("stop");
+        button.classList.add("start");
+        clearTimeout(snifferInterval);
+      }
+    }
+  </script>
+</body>
+
+</html>
