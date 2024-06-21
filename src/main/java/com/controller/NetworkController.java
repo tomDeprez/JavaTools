@@ -44,7 +44,11 @@ public class NetworkController {
         }
       }
     } catch (PcapNativeException e) {
-      e.printStackTrace();
+      System.out.println("Error: Native library not found. Please install the required native library:");
+      System.out.println("For Windows: Download WinPcap from https://www.winpcap.org/install/default.htm");
+      System.out
+          .println("For Linux: Install libpcap using your package manager, e.g., sudo apt-get install libpcap-dev");
+      System.out.println("For MacOS: Install libpcap using Homebrew, e.g., brew install libpcap");
     }
     return interfaces;
   }
@@ -55,32 +59,30 @@ public class NetworkController {
       @RequestParam(value = "showLocalOnly", defaultValue = "false") boolean showLocalOnly) {
     Map<String, Object> response = new HashMap<>();
     packetList.clear();
-
+  
     try {
       List<PcapNetworkInterface> allDevs = Pcaps.findAllDevs();
       System.out.println("Available Interfaces: ");
-      for (PcapNetworkInterface dev : allDevs) {
-        System.out.println(" - " + dev.getName());
-      }
-
+      allDevs.forEach(dev -> System.out.println(" - " + dev.getName()));
+  
       PcapNetworkInterface nif = allDevs.stream()
           .filter(dev -> dev.getName().equals(interfaceName))
           .findFirst()
           .orElse(null);
-
+  
       if (nif == null) {
         response.put("error", "No suitable network interface found.");
         return response;
       }
-
+  
       localIp = nif.getAddresses().stream()
           .filter(addr -> addr.getAddress() instanceof Inet4Address)
           .map(addr -> addr.getAddress().getHostAddress())
           .findFirst()
           .orElse("Unknown");
-
-      PcapHandle handle = nif.openLive(65536, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, 10);
-
+  
+      PcapHandle handle = nif.openLive(65536, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, 50);
+  
       Thread packetCaptureThread = new Thread(() -> {
         try {
           handle.loop(-1, (Packet packet) -> {
@@ -88,14 +90,13 @@ public class NetworkController {
               IpV4Packet ipPacket = packet.get(IpV4Packet.class);
               String srcAddr = ipPacket.getHeader().getSrcAddr().getHostAddress();
               String dstAddr = ipPacket.getHeader().getDstAddr().getHostAddress();
-
-              if (showLocalOnly && !isLocal(srcAddr) && !isLocal(dstAddr))
-                return;
-
+  
+              if (showLocalOnly && !isLocal(srcAddr) && !isLocal(dstAddr)) return;
+  
               Map<String, String> packetData = new HashMap<>();
               packetData.put("src", srcAddr);
               packetData.put("dst", dstAddr);
-
+  
               synchronized (packetList) {
                 packetList.add(packetData);
               }
@@ -107,10 +108,10 @@ public class NetworkController {
           handle.close();
         }
       });
-
+  
       packetCaptureThread.setDaemon(true);
       packetCaptureThread.start();
-
+  
       response.put("localIp", localIp);
       response.put("packets", packetList);
       return response;
@@ -118,8 +119,7 @@ public class NetworkController {
       response.put("error", "Native library not found. Please install the required native library: " +
           "<ul>" +
           "<li>Windows: <a href=\"https://www.winpcap.org/install/default.htm\">Download WinPcap</a></li>" +
-          "<li>Linux: Install libpcap using your package manager (e.g., <code>sudo apt-get install libpcap-dev</code>)</li>"
-          +
+          "<li>Linux: Install libpcap using your package manager (e.g., <code>sudo apt-get install libpcap-dev</code>)</li>" +
           "<li>MacOS: Install libpcap using Homebrew (e.g., <code>brew install libpcap</code>)</li>" +
           "</ul>");
       return response;
@@ -128,7 +128,7 @@ public class NetworkController {
       return response;
     }
   }
-
+  
   private boolean isLocal(String ip) {
     return ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.16.") || ip.startsWith("172.31.");
   }

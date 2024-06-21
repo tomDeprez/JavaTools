@@ -12,12 +12,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class LoginController {
 
-    @GetMapping("/loginPage")
+    @GetMapping("/test/loginPage")
     public String loginPage() {
         return "login";
     }
 
-    @PostMapping("/login")
+    @PostMapping("/test/login")
     public String login(@RequestParam("username") String username, @RequestParam("password") String password, 
                         HttpServletResponse response, HttpServletRequest request) {
         // Pour des raisons de sécurité, vous devriez vérifier le nom d'utilisateur et

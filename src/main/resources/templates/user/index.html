@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Bienvenue</title>
+    <link rel="stylesheet" th:href="@{/css/user.css}">
+</head>
+<body>
+<div class="container">
+    <div class="welcome-box">
+        <h1>Bienvenue, <span sec:authentication="principal.name"></span> sur votre compte</h1>
+        Roles: <span sec:authentication="principal.nom"></span>
+        <p class="welcome-message">Nous sommes ravis de vous revoir !</p>
+        <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+        <div sec:authorize="isAuthenticated()">
+            This content is only shown to authenticated users.
+          </div>
+          <div sec:authorize="hasRole('ROLE_ADMIN')">
+            This content is only shown to administrators.
+          </div>
+          <div sec:authorize="hasRole('ROLE_USER')">
+            This content is only shown to users.
+          </div>
+    </div>
+</div>
+</body>
+</html>

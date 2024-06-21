@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Portail d'authentification</title>
+    <link rel="stylesheet" th:href="@{/css/login.css}">
+</head>
+<body>
+<div class="container">
+    <h2>Portail d'authentification</h2>
+    <div class="forms-container">
+        <div class="form-wrapper">
+            <h3>Connexion</h3>
+            <form th:action="@{/login}" th:object="${user}" method="post" class="form-content">
+                <div class="form-group">
+                    <label for="email-login">Email:</label>
+                    <input type="email" id="email-login" th:field="*{email}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="password-login">Mot de passe:</label>
+                    <input type="password" id="password-login" th:field="*{password}" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Connexion</button>
+            </form>
+        </div>
+        <div class="form-wrapper">
+            <h3>Inscription</h3>
+            <form th:action="@{/register}" th:object="${user}" method="post" class="form-content">
+                <div class="form-group">
+                    <label for="nom">Nom:</label>
+                    <input type="text" id="nom" th:field="*{nom}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="prenom">Prénom:</label>
+                    <input type="text" id="prenom" th:field="*{prenom}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="age">Âge:</label>
+                    <input type="number" id="age" th:field="*{age}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="email-register">Email:</label>
+                    <input type="email" id="email-register" th:field="*{email}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="password-register">Mot de passe:</label>
+                    <input type="password" id="password-register" th:field="*{password}" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Inscription</button>
+            </form>
+        </div>
+    </div>
+    <div th:if="${error}" class="error">
+        <p th:text="${error}"></p>
+    </div>
+    <div th:if="${message}" class="message">
+        <p th:text="${message}"></p>
+    </div>
+</div>
+</body>
+</html>

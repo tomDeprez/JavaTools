@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-
 <head>
   <title>Network Connections</title>
   <style>
@@ -27,7 +26,6 @@
     }
   </style>
 </head>
-
 <body>
   <h1>Live Network Connections</h1>
   <div>
@@ -47,7 +45,6 @@
   </div>
   <div id="network-graph"></div>
 
-  <!-- Include D3.js library -->
   <script src="https://d3js.org/d3.v6.min.js"></script>
   <script th:inline="javascript">
     let nodes = [];
@@ -56,11 +53,14 @@
     let showLocalOnly = false;
     let nodeSet = new Set();
     let linkSet = new Set();
+    let nodeMap = new Map(); // To store communication count
+    let communicationMap = new Map(); // To store incremental communication count
     let simulation;
     let snifferInterval;
     let snifferRunning = true;
+    const maxNodeSize = 15; // Reduced max node size
+    const baseNodeSize = 3; // Reduced base node size
 
-    // Charger les interfaces réseau disponibles
     fetch('/interfaces')
       .then(response => response.json())
       .then(data => {
@@ -73,7 +73,6 @@
         });
       });
 
-    // Fonction pour démarrer le sniffer de paquets
     function startSniffer() {
       const select = document.getElementById('network-interfaces');
       const interfaceName = select.value;
@@ -89,16 +88,16 @@
             return;
           }
           localIp = data.localIp;
-          nodes = [{ id: 'local', name: 'Mon ordinateur', ip: localIp, x: 900, y: 390 }];
+          nodes = [{ id: localIp, name: 'Mon ordinateur', ip: localIp, x: 900, y: 390, communications: 0 }];
+          nodeMap.set(localIp, nodes[0]);
           links = [];
-          nodeSet = new Set(['local']);
+          nodeSet = new Set([localIp]);
           linkSet = new Set();
           initializeGraph();
           updatePackets();
         });
     }
 
-    // Fonction pour mettre à jour les données de paquets en direct
     function updatePackets() {
       if (!snifferRunning) return;
 
@@ -107,50 +106,75 @@
       fetch(`/sniffer?interfaceName=${encodeURIComponent(interfaceName)}&showLocalOnly=${showLocalOnly}`)
         .then(response => response.json())
         .then(data => {
-          // Mise à jour des données de paquets sans afficher le JSON complet
           const packetData = document.getElementById('packet-data');
           packetData.innerText = `Local IP: ${localIp}\nPackets captured: ${data.packets.length}`;
+
+          let nodesToUpdate = new Set();
+          let linksToUpdate = new Set();
+          let packetCountMap = new Map(); // To store the packet count for this update
+
+          data.packets.sort((a, b) => a.src.localeCompare(b.src) || a.dst.localeCompare(b.dst)); // Sort packets by IP
 
           data.packets.forEach((packet) => {
             if (showLocalOnly && !isLocal(packet.src) && !isLocal(packet.dst)) return;
 
+            packetCountMap.set(packet.src, (packetCountMap.get(packet.src) || 0) + 1);
+            packetCountMap.set(packet.dst, (packetCountMap.get(packet.dst) || 0) + 1);
+
             if (!nodeSet.has(packet.src)) {
-              nodes.push({ id: packet.src, name: packet.src, ip: packet.src, x: Math.random() * 1800, y: Math.random() * 780 });
+              const newNode = { id: packet.src, name: packet.src, ip: packet.src, x: Math.random() * 1800, y: Math.random() * 780, communications: 0 };
+              nodes.push(newNode);
+              nodeMap.set(packet.src, newNode);
+              communicationMap.set(packet.src, 0);
               nodeSet.add(packet.src);
-              links.push({ source: 'local', target: packet.src });
-              linkSet.add(`local-${packet.src}`);
+              nodesToUpdate.add(newNode);
             }
 
             if (!nodeSet.has(packet.dst)) {
-              nodes.push({ id: packet.dst, name: packet.dst, ip: packet.dst, x: Math.random() * 1800, y: Math.random() * 780 });
+              const newNode = { id: packet.dst, name: packet.dst, ip: packet.dst, x: Math.random() * 1800, y: Math.random() * 780, communications: 0 };
+              nodes.push(newNode);
+              nodeMap.set(packet.dst, newNode);
+              communicationMap.set(packet.dst, 0);
               nodeSet.add(packet.dst);
-              links.push({ source: packet.src, target: packet.dst });
-              linkSet.add(`${packet.src}-${packet.dst}`);
+              nodesToUpdate.add(newNode);
             }
 
             if (!linkSet.has(`${packet.src}-${packet.dst}`) && !linkSet.has(`${packet.dst}-${packet.src}`)) {
-              links.push({ source: packet.src, target: packet.dst });
+              const newLink = { source: packet.src, target: packet.dst };
+              links.push(newLink);
               linkSet.add(`${packet.src}-${packet.dst}`);
+              linksToUpdate.add(newLink);
             }
           });
 
-          updateGraph();
+          packetCountMap.forEach((count, ip) => {
+            const node = nodeMap.get(ip);
+            const currentComm = communicationMap.get(ip) || 0;
+            communicationMap.set(ip, currentComm + count);
+            node.communications += count;
+            nodesToUpdate.add(node);
+          });
 
-          // Ajoutez un délai avant de rappeler le contrôleur pour éviter les erreurs "NaN"
+          if (nodesToUpdate.size > 0 || linksToUpdate.size > 0) {
+            updateGraph(Array.from(nodesToUpdate), Array.from(linksToUpdate));
+            simulation.alpha(1).restart();
+          }
+
           snifferInterval = setTimeout(updatePackets, 2000);
         });
     }
 
-    // Fonction pour initialiser le graph
     function initializeGraph() {
       const svg = d3.select("#network-graph").append("svg")
         .attr("width", 1800)
         .attr("height", 780);
 
       simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(100)) // Increase the distance between nodes
-        .force("charge", d3.forceManyBody().strength(-500)) // Increase the repulsion force
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-50)) // Reduced charge strength
         .force("center", d3.forceCenter(900, 390))
+        .force("collision", d3.forceCollide().radius(d => getNodeSize(d) + 5)) // Added collision force
+        .force("gravity", d3.forceManyBody().strength(50)) // Increased gravity force
         .on("tick", ticked);
 
       svg.append("g").attr("class", "links");
@@ -158,54 +182,51 @@
       svg.append("g").attr("class", "labels");
     }
 
-    // Fonction pour mettre à jour le graph
-    function updateGraph() {
+    function updateGraph(nodesToUpdate, linksToUpdate) {
       const svg = d3.select("#network-graph svg");
 
       const link = svg.select(".links")
         .selectAll("line")
-        .data(links, d => `${d.source.id}-${d.target.id}`);
-
-      link.exit().remove();
+        .data(linksToUpdate, d => `${d.source.id}-${d.target.id}`);
 
       link.enter()
         .append("line")
         .attr("stroke", "#999")
-        .attr("stroke-width", 1.5)
-        .merge(link);
+        .attr("stroke-width", 1.5);
 
       const node = svg.select(".nodes")
         .selectAll("circle")
-        .data(nodes, d => d.id);
-
-      node.exit().remove();
+        .data(nodesToUpdate, d => d.id);
 
       node.enter()
         .append("circle")
-        .attr("r", 5)
+        .attr("r", d => getNodeSize(d))
         .attr("fill", "#69b3a2")
         .call(d3.drag()
           .on("start", dragstarted)
           .on("drag", dragged)
-          .on("end", dragended))
-        .merge(node);
+          .on("end", dragended));
+
+      node.attr("r", d => getNodeSize(d)); // Update radius for existing nodes
 
       const label = svg.select(".labels")
         .selectAll("text")
-        .data(nodes, d => d.id);
-
-      label.exit().remove();
+        .data(nodesToUpdate, d => d.id);
 
       label.enter()
         .append("text")
         .attr("dy", -10)
         .attr("text-anchor", "middle")
-        .text(d => d.name)
-        .merge(label);
+        .text(d => d.name);
 
       simulation.nodes(nodes);
       simulation.force("link").links(links);
-      simulation.alpha(1).restart();
+    }
+
+    function getNodeSize(d) {
+      const commIncrement = communicationMap.get(d.id) || 0;
+      const size = baseNodeSize + commIncrement / 2;
+      return Math.min(size, maxNodeSize);
     }
 
     function ticked() {
@@ -241,46 +262,33 @@
       d.fy = null;
     }
 
-    // Vérifier si une adresse IP est locale
     function isLocal(ip) {
       return ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.') || ip.startsWith('172.31.');
     }
 
-    // Basculer entre l'affichage local et complet
     function toggleLocal() {
       showLocalOnly = !showLocalOnly;
       const button = document.getElementById('toggle-local-button');
-      if (showLocalOnly) {
-        button.textContent = "Show All";
-        button.classList.add("local");
-      } else {
-        button.textContent = "Show Local Only";
-        button.classList.remove("local");
-      }
-      nodes = [{ id: 'local', name: 'Mon ordinateur', ip: localIp, x: 900, y: 390 }];
+      button.textContent = showLocalOnly ? "Show All" : "Show Local Only";
+      button.classList.toggle("local", showLocalOnly);
+      nodes = [{ id: localIp, name: 'Mon ordinateur', ip: localIp, x: 900, y: 390, communications: 0 }];
+      nodeMap.set(localIp, nodes[0]);
+      communicationMap.set(localIp, 0);
       links = [];
-      nodeSet = new Set(['local']);
+      nodeSet = new Set([localIp]);
       linkSet = new Set();
       updatePackets();
     }
 
-    // Basculer entre l'arrêt et la reprise du sniffer
     function toggleSniffer() {
       snifferRunning = !snifferRunning;
       const button = document.getElementById('toggle-sniffer-button');
-      if (snifferRunning) {
-        button.textContent = "Stop Sniffer";
-        button.classList.remove("start");
-        button.classList.add("stop");
-        updatePackets();
-      } else {
-        button.textContent = "Start Sniffer";
-        button.classList.remove("stop");
-        button.classList.add("start");
-        clearTimeout(snifferInterval);
-      }
+      button.textContent = snifferRunning ? "Stop Sniffer" : "Start Sniffer";
+      button.classList.toggle("stop", snifferRunning);
+      button.classList.toggle("start", !snifferRunning);
+      if (snifferRunning) updatePackets();
+      else clearTimeout(snifferInterval);
     }
   </script>
 </body>
-
 </html>
