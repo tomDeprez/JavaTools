@@ -8,8 +8,10 @@
 <body>
 <div class="container">
     <div class="welcome-box">
-        <h1>Bienvenue, <span sec:authentication="principal.name"></span> sur votre compte</h1>
-        Roles: <span sec:authentication="principal.nom"></span>
+        <h1>Bienvenue,  sur votre compte</h1>
+        Nom: <span sec:authentication="principal.nom"></span>
+        <br>
+        Email: <span sec:authentication="principal.username"></span>
         <p class="welcome-message">Nous sommes ravis de vous revoir !</p>
         <a href="/" class="btn btn-primary">Retour à l'accueil</a>
         <div sec:authorize="isAuthenticated()">
